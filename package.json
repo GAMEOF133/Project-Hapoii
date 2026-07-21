@@ -1,0 +1,12 @@
+{
+  "name": "hapoii-bot",
+  "version": "1.0.0",
+  "description": "Hapoii Telegram Bot",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.0"
+  }
+}
