@@ -8,8 +8,8 @@ const ADMIN_ID = '7334867757';
 
 // دیتابیس موقت کاربران (امتیاز، لول، و زمان آخرین هاپ)
 const db = {};
-const waitingForSupport = {};
-const waitingForCasino = {}; // برای ذخیره انتخاب کاربر در کازینو
+const waitingForSupport = {}; 
+const waitingForCasino = {}; 
 
 // تابع کمکی برای گرفتن اطلاعات کاربر
 function getUser(userId) {
@@ -50,7 +50,7 @@ bot.action('buy_coin', async (ctx) => {
     await ctx.reply('🛒 برای خرید هاپو کوین و اطلاع از تعرفه‌ها، به بخش پشتیبانی پیام دهید.');
 });
 
-// مدیریت پیام‌های متنی پی‌وی (پشتیبانی و انتخاب‌های کازینو)
+// مدیریت پیام‌های متنی پی‌وی (پشتیبانی، کازینو با کلمه متنی، و پاسخ ادمین)
 bot.on('text', async (ctx, next) => {
     if (ctx.chat.type !== 'private') return next();
 
@@ -82,22 +82,35 @@ bot.on('text', async (ctx, next) => {
         return;
     }
 
-    // پردازش مرحله دوم کازینو (انتخاب عدد یا زوج/فرد توسط کاربر)
-    if (waitingForCasino[userId]) {
-        const betType = waitingForCasino[userId]; // عدد انتخابی یا 'even'/'odd'
-        delete waitingForCasino[userId];
-
-        // بررسی اینکه لول کاربر حداقل 6 باشد
+    // اگر کاربر کلمه «کازینو» را در پی‌وی فرستاد (بدون نیاز به کامند)
+    if (/^(کازینو|casino)$/i.test(userText)) {
         if (user.level < 6) {
-            return ctx.reply(`❌ خطا! برای بازی در کازینو باید حداقل لول شما **6** باشد (لول فعلی شما: ${user.level}).`);
+            return ctx.reply(`❌ برای ورود به کازینو باید حداقل **لول 6** باشید!\n✨ لول فعلی شما: ${user.level}`);
         }
 
-        // بررسی اینکه کاربر حداقل 10 امتیاز برای شرط‌بندی داشته باشد
+        return ctx.reply(`🎰 **به کازینو هاپویی خوش آمدید!**\nلطفاً نوع شرط‌بندی خود را انتخاب کنید:\n(هزینه هر بار بازی: 10 امتیاز)`, {
+            ...Markup.inlineKeyboard([
+                [Markup.button.callback('🔢 عدد ۶', 'casino_6'), Markup.button.callback('🔢 عدد ۵', 'casino_5')],
+                [Markup.button.callback('🔢 عدد ۴', 'casino_4'), Markup.button.callback('🔢 عدد ۳', 'casino_3')],
+                [Markup.button.callback('🔢 عدد ۲', 'casino_2'), Markup.button.callback('🔢 عدد ۱', 'casino_1')],
+                [Markup.button.callback(' زوج (2 برابر)', 'casino_even'), Markup.button.callback(' فرد (2 برابر)', 'casino_odd')]
+            ])
+        });
+    }
+
+    // پردازش مرحله دوم کازینو (انتخاب عدد یا زوج/فرد توسط کاربر)
+    if (waitingForCasino[userId]) {
+        const betType = waitingForCasino[userId]; 
+        delete waitingForCasino[userId];
+
+        if (user.level < 6) {
+            return ctx.reply(`❌ خطا! برای بازی در کازینو باید حداقل لول شما **6** باشد.`);
+        }
+
         if (user.score < 10) {
             return ctx.reply(`⚠️ امتیاز شما برای شروع بازی کافی نیست! (حداقل 10 امتیاز لازم است).`);
         }
 
-        // ریختن تاس (عدد تصادفی بین 1 تا 6)
         const diceRoll = Math.floor(Math.random() * 6) + 1;
         let isWin = false;
         let prizeMultiplier = 0;
@@ -111,14 +124,14 @@ bot.on('text', async (ctx, next) => {
             if (diceRoll === chosenNum) { isWin = true; prizeMultiplier = 3; }
         }
 
-        const betAmount = 10; // هزینه هر بار بازی کازینو
+        const betAmount = 10; 
 
         if (isWin) {
             const reward = betAmount * prizeMultiplier;
-            user.score += (reward - betAmount); // اضافه کردن سود
+            user.score += (reward - betAmount); 
             return ctx.reply(`🎲 تاس ریخته شد و عدد **${diceRoll}** آمد!\n\n🎉 تبریک! شما برنده شدید و **${reward}** امتیاز جایزه گرفتید!\n✨ امتیاز کل شما: ${user.score}`);
         } else {
-            user.score -= betAmount; // کم کردن امتیاز به دلیل باخت
+            user.score -= betAmount; 
             if (user.score < 0) user.score = 0;
             return ctx.reply(`🎲 تاس ریخته شد و عدد **${diceRoll}** آمد!\n\n😢 متأسفانه باختید و ${betAmount} امتیاز از شما کسر شد.\n✨ امتیاز کل شما: ${user.score}`);
         }
@@ -127,31 +140,11 @@ bot.on('text', async (ctx, next) => {
     return next();
 });
 
-// دستور کازینو در پی‌وی
-bot.command('casino', (ctx) => {
-    if (ctx.chat.type !== 'private') return;
-    const userId = ctx.from.id;
-    const user = getUser(userId);
-
-    if (user.level < 6) {
-        return ctx.reply(`❌ برای ورود به کازینو باید حداقل **لول 6** باشید!\n✨ لول فعلی شما: ${user.level}`);
-    }
-
-    ctx.reply(`🎰 **به کازینو هاپویی خوش آمدید!**\nلطفاً نوع شرط‌بندی خود را انتخاب کنید:\n(هزینه هر بار بازی: 10 امتیاز)`, {
-        ...Markup.inlineKeyboard([
-            [Markup.button.callback('🔢 عدد ۶', 'casino_6'), Markup.button.callback('🔢 عدد ۵', 'casino_5')],
-            [Markup.button.callback('🔢 عدد ۴', 'casino_4'), Markup.button.callback('🔢 عدد ۳', 'casino_3')],
-            [Markup.button.callback('🔢 عدد ۲', 'casino_2'), Markup.button.callback('🔢 عدد ۱', 'casino_1')],
-            [Markup.button.callback(' زوج (2 برابر)', 'casino_even'), Markup.button.callback(' فرد (2 برابر)', 'casino_odd')]
-        ])
-    });
-});
-
 // مدیریت کلیک دکمه‌های کازینو
 bot.action(/^casino_(.+)$/, async (ctx) => {
     await ctx.answerCbQuery();
     const userId = ctx.from.id;
-    const actionVal = ctx.match[1]; // مثلا '6' یا 'even'
+    const actionVal = ctx.match[1]; 
     waitingForCasino[userId] = actionVal;
 
     if (actionVal === 'even') {
@@ -185,18 +178,14 @@ bot.hears(/^(هاپ|Hap|hap)$/i, (ctx) => {
         });
     }
 
-    // به‌روزرسانی زمان آخرین هاپ
     user.lastHapTime = now;
-
-    // اضافه کردن ۱ واحد به امتیاز (هر هاپ معادل 1 عدد)
     user.score += 1;
 
     let levelUpMessage = '';
 
-    // بررسی رسیدن امتیاز به 35 برای افزایش لول و ریست شدن
     if (user.score >= 35) {
-        user.score = 0; // ریست شدن امتیاز از 0
-        user.level += 1; // اضافه شدن یک لول
+        user.score = 0; 
+        user.level += 1; 
         levelUpMessage = `\n\n🎉 تبریک! امتیاز شما به 35 رسید و لول شما به **${user.level}** تغییر کرد! امتیازها ریست شدند (از 0).`;
     }
 
@@ -208,7 +197,7 @@ bot.hears(/^(هاپ|Hap|hap)$/i, (ctx) => {
 
 // راه‌اندازی ربات
 bot.launch().then(() => {
-    console.log('Hapoii bot with Level, Cooldown & Casino is running! 🚀');
+    console.log('Hapoii bot is running perfectly! 🚀');
 });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
