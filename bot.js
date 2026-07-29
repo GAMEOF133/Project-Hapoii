@@ -43,15 +43,44 @@ bot.action('buy_coin', async (ctx) => {
     await ctx.reply('🛒 برای خرید هاپو کوین و اطلاع از تعرفه‌ها، لطفاً به بخش فروشگاه مراجعه کنید.');
 });
 
-// دریافت پیام‌های متنی کاربران در پی‌وی (برای بخش پشتیبانی)
+// دریافت پیام‌های متنی در پی‌وی (هم برای ارسال پیام کاربر به ادمین، هم پاسخ ادمین به کاربر)
 bot.on('text', async (ctx, next) => {
     if (ctx.chat.type !== 'private') {
         return next();
     }
 
-    const userId = ctx.from.id;
+    const userId = String(ctx.from.id);
     const userText = ctx.message.text;
 
+    // ۱. اگر ادمین (شما) به یک پیامی Reply کرده باشد تا به کاربر جواب دهد
+    if (userId === ADMIN_ID && ctx.message.reply_to_message) {
+        const repliedText = ctx.message.reply_to_message.text || '';
+        
+        // استخراج آیدی عددی کاربر از داخل متنی که ادمین به آن ریپلی کرده است
+        const match = repliedText.match(/🆔 آیدی عددی:\s*<code>(\d+)<\/code>/);
+
+        if (match && match[1]) {
+            const targetUserId = match[1];
+
+            try {
+                // ارسال پاسخ ادمین به کاربر اصلی
+                await bot.telegram.sendMessage(
+                    targetUserId, 
+                    `📩 <b>پاسخ پشتیبانی:</b>\n\n${userText}`, 
+                    { parse_mode: 'HTML' }
+                );
+
+                // تایید ارسال به ادمین
+                await ctx.reply('✅ پاسخ شما با موفقیت برای کاربر ارسال شد.');
+            } catch (err) {
+                console.error('خطا در ارسال پاسخ به کاربر:', err);
+                await ctx.reply('❌ ارسال پاسخ ناموفق بود (احتمالاً کاربر ربات را بلاک کرده است).');
+            }
+            return;
+        }
+    }
+
+    // ۲. اگر کاربر عادی دکمه پشتیبانی را زده و حالا دارد پیامش را می‌فرستد
     if (waitingForSupport[userId]) {
         waitingForSupport[userId] = false; 
 
@@ -96,7 +125,7 @@ bot.hears(/^(هاپ|Hap|hap)$/i, (ctx) => {
 
 // راه‌اندازی ربات
 bot.launch().then(() => {
-    console.log('Hapoii bot with support system is running! 🚀');
+    console.log('Hapoii bot with full support & reply system is running! 🚀');
 });
 
 // مدیریت بستن امن ربات
