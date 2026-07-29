@@ -6,8 +6,13 @@ const bot = new Telegraf('8812169308:AAF0IsJ_jFDe2W_D6GkpIiND-gmk3xUBra4');
 // ذخیره ساده امتیازها در حافظه موقت ربات
 const userScores = {};
 
-// گوش دادن به پیام‌های کاربران
+// گوش دادن به پیام‌های کاربران (فقط در گروه‌ها یا سوپرگروه‌ها)
 bot.hears(/^(هاپ|Hap|hap)$/i, (ctx) => {
+    // بررسی اینکه آیا پیام در گروه یا سوپرگروه ارسال شده است یا خیر
+    if (ctx.chat.type !== 'group' && ctx.chat.type !== 'supergroup') {
+        return; // اگر در پی‌وی بود، هیچ واکنشی نشان ندهد
+    }
+
     const userId = ctx.from.id;
     const userName = ctx.from.first_name || 'دوست عزیز';
 
@@ -20,18 +25,20 @@ bot.hears(/^(هاپ|Hap|hap)$/i, (ctx) => {
     }
     userScores[userId] += randomPoints;
 
-    // ارسال پاسخ با ایموجی سگ 🐶
+    // ارسال پاسخ با ایموجی سگ 🐶 در گروه
     ctx.reply(`🐶 <b>${userName}</b> عزیز، مقدار <b>${randomPoints}</b> امتیاز هاپویی دریافت کردی!\n\n✨ مجموع امتیازهای تو: <b>${userScores[userId]}</b> امتیاز`, {
         parse_mode: 'HTML',
         reply_to_message_id: ctx.message.message_id
     });
 });
 
-// دستور شروع ربات
+// دستور شروع ربات (اختیاری: برای اینکه در پی‌وی بگوید فقط در گروه کار می‌کنم)
 bot.start((ctx) => {
-    ctx.reply(`سلام! من «هاپویی» 🐶 هستم.\nکافیه توی چت کلمه «هاپ» رو بفرستی تا امتیاز هاپویی بگیری!`, {
-        parse_mode: 'HTML'
-    });
+    if (ctx.chat.type === 'private') {
+        ctx.reply(`سلام! من «هاپویی» 🐶 هستم.\nمن فقط توی **گروه‌ها** کار می‌کنم؛ منو به یک گروه اضافه کن و اونجا کلمه «هاپ» رو بفرست!`, {
+            parse_mode: 'HTML'
+        });
+    }
 });
 
 // راه‌اندازی ربات
